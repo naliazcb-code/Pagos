@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Pagos"/>
+<title>Affirm & Klarna</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-family:-apple-system,sans-serif;}
+body{background:#0a0f1e;color:#e2e8f0;max-width:430px;margin:0 auto;min-height:100vh;padding-bottom:30px;}
+.hdr{background:linear-gradient(135deg,#1a0533,#0d1a47);padding:20px 16px 14px;text-align:center;}
+.hdr-title{font-size:22px;font-weight:800;letter-spacing:2px;color:#fff;}
+.hdr-sub{font-size:11px;color:#90caf9;margin-top:3px;}
+.pg{padding:14px;}
+.card{background:#0d1b3e;border:1px solid #1e3a6e;border-radius:14px;padding:16px;margin-bottom:12px;}
+.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;margin-top:8px;}
+.btn-affirm{background:linear-gradient(135deg,#0a3d62,#1565c0);}
+.btn-klarna{background:linear-gradient(135deg,#6a0080,#9c27b0);}
+.btn-green{background:linear-gradient(135deg,#1b5e20,#2e7d32);}
+.btn-gray{background:#37474f;}
+.btn-red{background:#b71c1c;}
+.btn-sm{border:none;border-radius:8px;color:#fff;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.inp{width:100%;background:#070d1a;border:1px solid #1e3a6e;border-radius:8px;padding:11px 12px;font-size:15px;color:#e2e8f0;margin-bottom:10px;-webkit-appearance:none;outline:none;}
+label{font-size:11px;color:#64b5f6;display:block;margin-bottom:4px;margin-top:8px;}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:100;align-items:flex-end;justify-content:center;}
+.modal.on{display:flex;}
+.modal-box{background:#0d1b3e;border-radius:16px 16px 0 0;padding:22px;width:100%;max-width:430px;border-top:2px solid #1565c0;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:14px;}
+.modal-row{display:flex;gap:8px;margin-top:12px;}
+.numpad-display{font-size:32px;font-weight:800;text-align:center;padding:14px;background:#070d1a;border-radius:10px;margin-bottom:8px;color:#fff;cursor:pointer;border:2px solid #1565c0;}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;}
+.nk{padding:16px;border:none;border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;background:#1a2744;color:#fff;}
+.nk.del{background:#b71c1c;}
+.nk.zero{grid-column:span 2;}
+.progress-bar{background:#1a2744;border-radius:6px;height:8px;margin:8px 0;}
+.progress-fill{height:8px;border-radius:6px;transition:width .3s;}
+.badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;}
+.cuota-row{padding:8px 0;border-bottom:1px solid #0d1428;display:flex;justify-content:space-between;align-items:center;}
+.cuota-row:last-child{border-bottom:none;}
+.tab-row{display:flex;gap:8px;margin-bottom:14px;}
+.tab{flex:1;padding:10px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;background:#1a2744;color:#90caf9;}
+.tab.on{background:#1565c0;color:#fff;}
+.total-card{border-radius:14px;padding:14px;margin-bottom:12px;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-title">💳 AFFIRM & KLARNA</div>
+  <div class="hdr-sub" id="hdr-sub">Control de pagos a plazos</div>
+</div>
+
+<div class="pg" id="main-pg"></div>
+
+<!-- MODAL NUEVA COMPRA -->
+<div id="m-compra" class="modal">
+<div class="modal-box">
+  <div class="modal-title" id="m-compra-title">+ Nueva compra</div>
+  <input type="hidden" id="c-id"/>
+
+  <label>Plataforma</label>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button id="btn-affirm" onclick="selPlat('affirm')" style="flex:1;padding:10px;border:2px solid #1565c0;border-radius:8px;background:#0a3d62;color:#fff;font-weight:700;cursor:pointer;">Affirm</button>
+    <button id="btn-klarna" onclick="selPlat('klarna')" style="flex:1;padding:10px;border:2px solid #1e3a6e;border-radius:8px;background:#1a2744;color:#90caf9;font-weight:700;cursor:pointer;">Klarna</button>
+  </div>
+  <input type="hidden" id="c-plat" value="affirm"/>
+
+  <label>Descripción</label>
+  <input class="inp" type="text" id="c-desc" placeholder="ej: iPhone Case, Ropa..."/>
+
+  <label>Monto total de la compra ($)</label>
+  <div class="numpad-display" id="c-total-disp" onclick="npToggle('total')">$0.00</div>
+  <div id="np-total" style="display:none;">
+    <div class="numpad">
+      <button class="nk" onclick="npKey('total','1')">1</button><button class="nk" onclick="npKey('total','2')">2</button><button class="nk" onclick="npKey('total','3')">3</button>
+      <button class="nk" onclick="npKey('total','4')">4</button><button class="nk" onclick="npKey('total','5')">5</button><button class="nk" onclick="npKey('total','6')">6</button>
+      <button class="nk" onclick="npKey('total','7')">7</button><button class="nk" onclick="npKey('total','8')">8</button><button class="nk" onclick="npKey('total','9')">9</button>
+      <button class="nk" onclick="npKey('total','.')">.</button><button class="nk zero" onclick="npKey('total','0')">0</button><button class="nk del" onclick="npKey('total','del')">⌫</button>
+    </div>
+  </div>
+
+  <label>Pago inicial ($) — opcional</label>
+  <div class="numpad-display" id="c-inicial-disp" onclick="npToggle('inicial')" style="font-size:22px;padding:10px;border-color:#1e3a6e;">$0.00</div>
+  <div id="np-inicial" style="display:none;">
+    <div class="numpad">
+      <button class="nk" onclick="npKey('inicial','1')">1</button><button class="nk" onclick="npKey('inicial','2')">2</button><button class="nk" onclick="npKey('inicial','3')">3</button>
+      <button class="nk" onclick="npKey('inicial','4')">4</button><button class="nk" onclick="npKey('inicial','5')">5</button><button class="nk" onclick="npKey('inicial','6')">6</button>
+      <button class="nk" onclick="npKey('inicial','7')">7</button><button class="nk" onclick="npKey('inicial','8')">8</button><button class="nk" onclick="npKey('inicial','9')">9</button>
+      <button class="nk" onclick="npKey('inicial','.')">.</button><button class="nk zero" onclick="npKey('inicial','0')">0</button><button class="nk del" onclick="npKey('inicial','del')">⌫</button>
+    </div>
+  </div>
+
+  <label>Número de cuotas</label>
+  <input class="inp" type="number" inputmode="numeric" id="c-cuotas" placeholder="ej: 4" value="4"/>
+
+  <label>Frecuencia de pago</label>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button id="btn-quincenal" onclick="selFreq('quincenal')" style="flex:1;padding:10px;border:2px solid #1565c0;border-radius:8px;background:#1565c0;color:#fff;font-weight:700;cursor:pointer;font-size:12px;">Cada 2 semanas</button>
+    <button id="btn-mensual" onclick="selFreq('mensual')" style="flex:1;padding:10px;border:2px solid #1e3a6e;border-radius:8px;background:#1a2744;color:#90caf9;font-weight:700;cursor:pointer;font-size:12px;">Mensual</button>
+  </div>
+  <input type="hidden" id="c-freq" value="quincenal"/>
+
+  <label>Fecha del primer pago</label>
+  <input class="inp" type="date" id="c-fecha"/>
+
+  <div class="modal-row">
+    <button class="btn btn-gray" style="margin-top:0;" onclick="closeM('m-compra')">Cancelar</button>
+    <button class="btn btn-green" style="margin-top:0;" onclick="saveCompra()">Guardar ✓</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL PAGAR CUOTA -->
+<div id="m-pagar" class="modal">
+<div class="modal-box">
+  <div class="modal-title" id="m-pagar-title">Registrar pago</div>
+  <input type="hidden" id="p-id"/>
+  <div style="font-size:12px;color:#546e7a;margin-bottom:10px;" id="p-sub"></div>
+  <div class="numpad-display" id="p-disp">$0.00</div>
+  <div class="numpad">
+    <button class="nk" onclick="pnk('1')">1</button><button class="nk" onclick="pnk('2')">2</button><button class="nk" onclick="pnk('3')">3</button>
+    <button class="nk" onclick="pnk('4')">4</button><button class="nk" onclick="pnk('5')">5</button><button class="nk" onclick="pnk('6')">6</button>
+    <button class="nk" onclick="pnk('7')">7</button><button class="nk" onclick="pnk('8')">8</button><button class="nk" onclick="pnk('9')">9</button>
+    <button class="nk" onclick="pnk('.')">.</button><button class="nk zero" onclick="pnk('0')">0</button><button class="nk del" onclick="pnk('del')">⌫</button>
+  </div>
+  <div class="modal-row">
+    <button class="btn btn-gray" style="margin-top:0;" onclick="closeM('m-pagar')">Cancelar</button>
+    <button class="btn btn-green" style="margin-top:0;" onclick="confirmPago()">Pagar ✓</button>
+  </div>
+</div>
+</div>
+
+<script>
+var SK = "pagos_v1";
+var npStr = {total:"", inicial:""};
+var pStr = ""; var pCallback = null;
+var selPlatVal = "affirm"; var selFreqVal = "quincenal";
+var activeTab = "affirm";
+
+function emptyState(){ return {compras:[]}; }
+
+var S;
+try{ var raw=localStorage.getItem(SK); S=raw?JSON.parse(raw):emptyState(); if(!S.compras)S.compras=[]; }
+catch(e){ S=emptyState(); }
+
+function save(){ try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){} }
+function fmt(n){ return "$"+(+(n||0)).toFixed(2); }
+function pf(v){ return Math.max(0,parseFloat(String(v||0))||0); }
+
+function openM(id){ document.getElementById(id).className="modal on"; }
+function closeM(id){ document.getElementById(id).className="modal"; }
+
+// Numpad
+function npToggle(field){
+  ["total","inicial"].forEach(function(f){
+    if(f!==field){ var o=document.getElementById("np-"+f); if(o)o.style.display="none"; }
+  });
+  var np=document.getElementById("np-"+field);
+  if(np) np.style.display=np.style.display==="none"?"block":"none";
+}
+function npKey(field,k){
+  var s=npStr[field];
+  if(k==="del") s=s.slice(0,-1);
+  else if(k==="."){if(s.indexOf(".")<0)s+=k;}
+  else{var d=s.indexOf(".");if(d>=0&&s.length-d>2)return;s+=k;}
+  npStr[field]=s;
+  document.getElementById("c-"+field+"-disp").textContent="$"+(s||"0.00");
+}
+function pnk(k){
+  if(k==="del") pStr=pStr.slice(0,-1);
+  else if(k==="."){if(pStr.indexOf(".")<0)pStr+=k;}
+  else{var d=pStr.indexOf(".");if(d>=0&&pStr.length-d>2)return;pStr+=k;}
+  document.getElementById("p-disp").textContent="$"+(pStr||"0.00");
+}
+
+// Platform selector
+function selPlat(p){
+  selPlatVal=p;
+  document.getElementById("c-plat").value=p;
+  document.getElementById("btn-affirm").style.borderColor=p==="affirm"?"#1565c0":"#1e3a6e";
+  document.getElementById("btn-affirm").style.background=p==="affirm"?"#0a3d62":"#1a2744";
+  document.getElementById("btn-affirm").style.color=p==="affirm"?"#fff":"#90caf9";
+  document.getElementById("btn-klarna").style.borderColor=p==="klarna"?"#9c27b0":"#1e3a6e";
+  document.getElementById("btn-klarna").style.background=p==="klarna"?"#6a0080":"#1a2744";
+  document.getElementById("btn-klarna").style.color=p==="klarna"?"#fff":"#90caf9";
+}
+function selFreq(f){
+  selFreqVal=f;
+  document.getElementById("c-freq").value=f;
+  document.getElementById("btn-quincenal").style.borderColor=f==="quincenal"?"#1565c0":"#1e3a6e";
+  document.getElementById("btn-quincenal").style.background=f==="quincenal"?"#1565c0":"#1a2744";
+  document.getElementById("btn-quincenal").style.color=f==="quincenal"?"#fff":"#90caf9";
+  document.getElementById("btn-mensual").style.borderColor=f==="mensual"?"#1565c0":"#1e3a6e";
+  document.getElementById("btn-mensual").style.background=f==="mensual"?"#1565c0":"#1a2744";
+  document.getElementById("btn-mensual").style.color=f==="mensual"?"#fff":"#90caf9";
+}
+
+// Generate payment schedule
+function genCuotas(total, inicial, numCuotas, freq, fechaStr){
+  var resto = total - inicial;
+  var montoCuota = Math.round((resto/numCuotas)*100)/100;
+  var cuotas = [];
+  var fecha = new Date(fechaStr+"T12:00:00");
+  for(var i=0;i<numCuotas;i++){
+    var f = new Date(fecha);
+    if(freq==="quincenal") f.setDate(fecha.getDate()+(i*14));
+    else f.setMonth(fecha.getMonth()+i);
+    cuotas.push({
+      num: i+1,
+      monto: montoCuota,
+      fecha: f.toISOString().split("T")[0],
+      pagado: false,
+      pagadoAmt: 0
+    });
+  }
+  // Adjust last cuota for rounding
+  var sumCuotas = montoCuota * numCuotas;
+  var diff = Math.round((resto - sumCuotas)*100)/100;
+  if(cuotas.length>0) cuotas[cuotas.length-1].monto = Math.round((cuotas[cuotas.length-1].monto+diff)*100)/100;
+  return cuotas;
+}
+
+function openCompra(id){
+  var c = id ? S.compras.find(function(x){return x.id===id;}) : null;
+  document.getElementById("m-compra-title").textContent = c ? "✏️ Editar compra" : "+ Nueva compra";
+  document.getElementById("c-id").value = c ? c.id : "";
+  document.getElementById("c-desc").value = c ? c.desc : "";
+  document.getElementById("c-cuotas").value = c ? c.numCuotas : "4";
+  // Set date to today
+  var today = new Date().toISOString().split("T")[0];
+  document.getElementById("c-fecha").value = c ? (c.cuotas[0]?c.cuotas[0].fecha:today) : today;
+  npStr.total = c ? String(c.total) : "";
+  npStr.inicial = c ? String(c.inicial) : "";
+  document.getElementById("c-total-disp").textContent = c ? fmt(c.total) : "$0.00";
+  document.getElementById("c-inicial-disp").textContent = c ? fmt(c.inicial) : "$0.00";
+  document.getElementById("np-total").style.display="none";
+  document.getElementById("np-inicial").style.display="none";
+  selPlat(c?c.plat:"affirm");
+  selFreq(c?c.freq:"quincenal");
+  openM("m-compra");
+}
+
+function saveCompra(){
+  var id = document.getElementById("c-id").value;
+  var desc = document.getElementById("c-desc").value.trim();
+  var total = pf(npStr.total);
+  var inicial = pf(npStr.inicial);
+  var numCuotas = parseInt(document.getElementById("c-cuotas").value)||4;
+  var freq = document.getElementById("c-freq").value;
+  var fecha = document.getElementById("c-fecha").value;
+  var plat = document.getElementById("c-plat").value;
+  if(!desc||!total||!fecha) return;
+  var cuotas = genCuotas(total, inicial, numCuotas, freq, fecha);
+  if(id){
+    var c = S.compras.find(function(x){return x.id==id;});
+    if(c){c.desc=desc;c.total=total;c.inicial=inicial;c.numCuotas=numCuotas;c.freq=freq;c.plat=plat;c.cuotas=cuotas;}
+  } else {
+    S.compras.unshift({id:Date.now(),desc:desc,total:total,inicial:inicial,numCuotas:numCuotas,freq:freq,plat:plat,cuotas:cuotas});
+  }
+  save(); closeM("m-compra"); render();
+}
+
+function delCompra(id){
+  S.compras = S.compras.filter(function(x){return x.id!==id;});
+  save(); render();
+}
+
+function openPagarCuota(cid, cnum){
+  var comp = S.compras.find(function(x){return x.id===cid;});
+  if(!comp) return;
+  var cuota = comp.cuotas[cnum];
+  if(!cuota) return;
+  pStr="";
+  document.getElementById("p-id").value = cid+"|"+cnum;
+  document.getElementById("p-disp").textContent = "$0.00";
+  document.getElementById("m-pagar-title").textContent = "💳 Cuota "+cuota.num+" de "+comp.numCuotas;
+  document.getElementById("p-sub").textContent = comp.desc+" · Monto: "+fmt(cuota.monto)+" · "+fmtFecha(cuota.fecha);
+  openM("m-pagar");
+}
+
+function confirmPago(){
+  var ids = document.getElementById("p-id").value.split("|");
+  var cid = parseInt(ids[0]), cnum = parseInt(ids[1]);
+  var v = pf(pStr); if(!v) return;
+  var comp = S.compras.find(function(x){return x.id===cid;});
+  if(!comp) return;
+  var cuota = comp.cuotas[cnum];
+  if(!cuota) return;
+  cuota.pagadoAmt = v;
+  cuota.pagado = v >= cuota.monto*0.99;
+  cuota.fechaPago = new Date().toISOString().split("T")[0];
+  save(); closeM("m-pagar"); render();
+}
+
+function fmtFecha(str){
+  if(!str) return "";
+  var d = new Date(str+"T12:00:00");
+  return d.toLocaleDateString("es-US",{month:"short",day:"numeric",year:"numeric"});
+}
+
+function diasRestantes(str){
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  var fecha = new Date(str+"T12:00:00"); fecha.setHours(0,0,0,0);
+  return Math.ceil((fecha-hoy)/(1000*60*60*24));
+}
+
+function render(){
+  var today = new Date().toISOString().split("T")[0];
+  var hdrSub = new Date().toLocaleDateString("es-US",{weekday:"long",month:"long",day:"numeric"});
+  document.getElementById("hdr-sub").textContent = hdrSub;
+
+  var h = "";
+
+  // Tabs
+  h += '<div class="tab-row">';
+  h += '<button class="tab'+(activeTab==="affirm"?" on":"")+ '" onclick="activeTab=\'affirm\';render()">Affirm</button>';
+  h += '<button class="tab'+(activeTab==="klarna"?" on":"")+ '" onclick="activeTab=\'klarna\';render()">Klarna</button>';
+  h += '<button class="tab'+(activeTab==="all"?" on":"")+ '" onclick="activeTab=\'all\';render()">Todos</button>';
+  h += '</div>';
+
+  var compras = S.compras.filter(function(c){return activeTab==="all"||c.plat===activeTab;});
+
+  // Summary
+  var totalDeuda=0, totalPendiente=0, proxPago=null, proxMonto=0;
+  S.compras.forEach(function(c){
+    totalDeuda+=c.total;
+    c.cuotas.forEach(function(q){
+      if(!q.pagado) totalPendiente+=q.monto;
+      if(!q.pagado&&(!proxPago||q.fecha<proxPago)){proxPago=q.fecha;proxMonto=q.monto;}
+    });
+  });
+
+  h += '<div class="card" style="border-color:#1565c0;margin-bottom:14px;">';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+  h += '<div style="text-align:center;"><div style="font-size:9px;color:#546e7a;text-transform:uppercase;margin-bottom:3px;">Total compras</div><div style="font-size:22px;font-weight:800;color:#ef5350;">'+fmt(totalDeuda)+'</div></div>';
+  h += '<div style="text-align:center;"><div style="font-size:9px;color:#546e7a;text-transform:uppercase;margin-bottom:3px;">Por pagar</div><div style="font-size:22px;font-weight:800;color:#ffa726;">'+fmt(totalPendiente)+'</div></div>';
+  h += '</div>';
+  if(proxPago){
+    var dias = diasRestantes(proxPago);
+    var col = dias<=3?"#ef5350":dias<=7?"#ffa726":"#66bb6a";
+    h += '<div style="margin-top:10px;background:#070d1a;border-radius:8px;padding:8px;text-align:center;">';
+    h += '<div style="font-size:10px;color:#546e7a;">⏰ Próximo pago</div>';
+    h += '<div style="font-size:16px;font-weight:700;color:'+col+';">'+fmt(proxMonto)+' · '+fmtFecha(proxPago)+'</div>';
+    h += '<div style="font-size:11px;color:'+col+';">'+(dias<0?"⚠️ Vencido hace "+Math.abs(dias)+" días":dias===0?"¡Vence hoy!":dias===1?"Vence mañana":"En "+dias+" días")+'</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // Add buttons
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">';
+  h += '<button class="btn btn-affirm" style="margin-top:0;" onclick="openCompra(null);selPlat(\'affirm\')">+ Affirm</button>';
+  h += '<button class="btn btn-klarna" style="margin-top:0;" onclick="openCompra(null);selPlat(\'klarna\')">+ Klarna</button>';
+  h += '</div>';
+
+  if(!compras.length){
+    h += '<div style="text-align:center;padding:30px;color:#546e7a;font-size:13px;">Sin compras registradas</div>';
+  }
+
+  compras.forEach(function(c){
+    var pagadas = c.cuotas.filter(function(q){return q.pagado;}).length;
+    var pendientes = c.cuotas.filter(function(q){return !q.pagado;});
+    var totalPag = c.inicial;
+    c.cuotas.forEach(function(q){if(q.pagado)totalPag+=q.pagadoAmt||q.monto;});
+    var resto = c.total - totalPag;
+    var pct = Math.round((totalPag/c.total)*100);
+    var platColor = c.plat==="affirm"?"#1565c0":"#9c27b0";
+    var platLabel = c.plat==="affirm"?"Affirm":"Klarna";
+
+    h += '<div class="card" style="border-color:'+platColor+';margin-bottom:12px;">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">';
+    h += '<div>';
+    h += '<span class="badge" style="background:'+platColor+';color:#fff;margin-bottom:4px;">'+platLabel+'</span>';
+    h += '<div style="font-size:15px;font-weight:700;margin-top:4px;">'+c.desc+'</div>';
+    h += '<div style="font-size:10px;color:#546e7a;margin-top:2px;">'+(c.freq==="quincenal"?"Cada 2 semanas":"Mensual")+' · '+c.numCuotas+' cuotas</div>';
+    h += '</div>';
+    h += '<div style="display:flex;gap:6px;">';
+    h += '<button class="btn-sm" style="background:#37474f;" onclick="openCompra('+c.id+')">✏️</button>';
+    h += '<button class="btn-sm" style="background:#b71c1c;" onclick="delCompra('+c.id+')">✕</button>';
+    h += '</div></div>';
+
+    // Amounts
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">';
+    h += '<div style="background:#070d1a;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:9px;color:#546e7a;">Total</div><div style="font-size:15px;font-weight:800;color:#e2e8f0;">'+fmt(c.total)+'</div></div>';
+    h += '<div style="background:#070d1a;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:9px;color:#66bb6a;">Pagado</div><div style="font-size:15px;font-weight:800;color:#66bb6a;">'+fmt(totalPag)+'</div></div>';
+    h += '<div style="background:#070d1a;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:9px;color:#ef5350;">Resto</div><div style="font-size:15px;font-weight:800;color:#ef5350;">'+fmt(resto)+'</div></div>';
+    h += '</div>';
+
+    if(c.inicial>0){
+      h += '<div style="font-size:10px;color:#546e7a;margin-bottom:6px;">Pago inicial: '+fmt(c.inicial)+'</div>';
+    }
+
+    // Progress
+    h += '<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+platColor+';"></div></div>';
+    h += '<div style="font-size:10px;color:#546e7a;text-align:right;margin-bottom:10px;">'+pagadas+'/'+c.numCuotas+' cuotas · '+pct+'%</div>';
+
+    // Cuotas
+    h += '<div style="font-size:10px;color:#64b5f6;font-weight:700;margin-bottom:6px;">📅 Cuotas</div>';
+    c.cuotas.forEach(function(q,i){
+      var dias = diasRestantes(q.fecha);
+      var vencida = !q.pagado && dias<0;
+      var hoy = !q.pagado && dias===0;
+      var prox = !q.pagado && dias>0 && dias<=7;
+      var col = q.pagado?"#66bb6a":vencida?"#ef5350":hoy?"#ff7043":prox?"#ffa726":"#90caf9";
+      var estado = q.pagado?"✅ Pagado":vencida?"⚠️ Vencida":hoy?"🔴 Hoy":prox?"⏰ Esta semana":"📅 "+fmtFecha(q.fecha);
+      h += '<div class="cuota-row">';
+      h += '<div>';
+      h += '<div style="font-size:12px;font-weight:700;color:'+col+';">Cuota '+q.num+' — '+fmt(q.monto)+'</div>';
+      h += '<div style="font-size:10px;color:#546e7a;">'+estado+(q.pagado&&q.fechaPago?" · Pagado el "+fmtFecha(q.fechaPago):"")+'</div>';
+      h += '</div>';
+      if(!q.pagado){
+        h += '<button class="btn-sm" style="background:'+platColor+';" onclick="openPagarCuota('+c.id+','+i+')">💰 Pagar</button>';
+      } else {
+        h += '<div style="font-size:12px;font-weight:700;color:#66bb6a;">'+fmt(q.pagadoAmt||q.monto)+'</div>';
+      }
+      h += '</div>';
+    });
+
+    h += '</div>';
+  });
+
+  document.getElementById("main-pg").innerHTML = h;
+}
+
+render();
+</script>
+</body>
+</html>
